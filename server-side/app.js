@@ -7,10 +7,14 @@ const mongoose = require('mongoose')
 // init app
 const app = express();
 
+
+// Models 
+const Event = require('./models/event') ;
+
+
 // Middleware
 app.use(bodyParser.json());
 
-const events = [];
 
 app.use(
   '/api',
@@ -34,7 +38,7 @@ app.use(
         input EventInput {
           title: String!
           description: String!
-          price: Int!
+          price: Float!
           date: String!
         }
 
@@ -45,18 +49,29 @@ app.use(
     `),
     rootValue: {
       events: () => {
-        return events;
+        return Event.find()
+        .then(events=>{
+          return events.map(event =>{
+            return {...event._doc,_id:event.id}
+          })
+        })
       },
-      createEvent: (args) => {
-        const event = {
-          _id: Math.random().toString(),
+      createEvent: args => {
+        const event = new Event({
           title: args.eventInput.title,
           description: args.eventInput.description,
           price: +args.eventInput.price,
-          date: args.eventInput.date,
-        }
-        events.push(event);
-        return event;
+          date: new Date(args.eventInput.date),
+        });
+        return event.save()
+        .then((result)=>{
+          console.log(result)
+          return {...result._doc,_id:result._doc._id.toString()};
+        })
+        .catch(err=>{
+          console.log(err);
+          throw err;
+        })
       }
     },
     graphiql: true
@@ -65,7 +80,16 @@ app.use(
 
 // Routes
 
+mongoose.connect(
+  `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-ha2pv.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`,
+{
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+  })
+.then(()=>{  
+  app.listen(2000);
+})
+.catch(err=>{
+  console.log(err);
+})
 
-mongoose.connect(`mongodb+srv://user1:<password>@cluster0-ha2pv.mongodb.net/test?retryWrites=true&w=majority`)
-
-app.listen(2000);
